@@ -1,0 +1,235 @@
+diff --git a/src/routes/addmanuscript.svelte b/src/routes/addmanuscript.svelte
+index c3fccf6..7d81df1 100644
+--- a/src/routes/addmanuscript.svelte
++++ b/src/routes/addmanuscript.svelte
+@@ -2,20 +2,12 @@
+ 	import * as sapper from '@sapper/app';
+   import { manuscripts } from '../stores/manuscriptsstore.js';
+   let localImageFileName = '';
+-  let localRectanglesFileName = '';
+-  let localLinesFileName = '';
+-	let imageWidth = '';
+-	let imageHeight = '';
+-
+-  $: isSubmitDisabled = !localImageFileName || !imageWidth || !imageHeight || !localRectanglesFileName || !localLinesFileName;
++  
++  $: isSubmitDisabled = !localImageFileName;
+   
+   async function handleSubmit(event) {
+     const options = {
+-			width: imageWidth,
+-      height: imageHeight,
+-      imageFile: event.target.file.files[0],
+-      rectsFile: event.target.rectsFile.files[0],
+-      linesFile: event.target.linesFile.files[0]
++			imageFile: event.target.file.files[0]
+ 		};
+     await manuscripts.createManuscript(options);
+     sapper.goto(`manuscripts?id=${manuscripts.getUserId()}`);
+@@ -23,22 +15,6 @@
+ </script>
+ 
+ <form class="w-full max-w-xl" autocomplete="off" enctype="multipart/form-data"  on:submit|once|preventDefault={handleSubmit}>
+-  <div class="md:flex md:items-center mb-6">
+-    <div class="md:w-1/2 text-right">
+-      <label class="label-sm md:label" for="inline-width">Image Width</label>
+-    </div>
+-    <div class="md:w-1/2">
+-      <input class="label-input w-full" id="inline-width" name="width" type="text" bind:value={imageWidth} />
+-    </div>
+-  </div>
+-  <div class="md:flex md:items-center mb-6">
+-    <div class="md:w-1/2 text-right">
+-      <label class="label-sm md:label" for="inline-height">Image Height</label>
+-    </div>
+-    <div class="md:w-1/2">
+-      <input class="label-input w-full" id="inline-height" name="height" type="text" bind:value={imageHeight} />
+-    </div>
+-  </div>
+   <div class="md:flex md:items-center mb-6">
+     <div class="md:w-1/2 text-right">
+       <label class="label-sm md:label" for="inline-local-file-name">Choose Image File</label>
+@@ -53,34 +29,6 @@
+              accept="image/jpeg" />
+     </div>
+   </div>
+-  <div class="md:flex md:items-center mb-6">
+-    <div class="md:w-1/2 text-right">
+-      <label class="label-sm md:label" for="inline-local-rects-file-name">Choose Rectangles File</label>
+-    </div>
+-    <div class="md:w-1/2">
+-      <input bind:value={localRectanglesFileName}
+-             class="label-input w-full"
+-             name="rectsFile"
+-             id="inline-local-rects-file-name"
+-             placeholder="Pick a csv file to upload"
+-             type="file"
+-             accept=".csv" />
+-    </div>
+-  </div>
+-  <div class="md:flex md:items-center mb-6">
+-    <div class="md:w-1/2 text-right">
+-      <label class="label-sm md:label" for="inline-local-lines-file-name">Choose Lines File</label>
+-    </div>
+-    <div class="md:w-1/2">
+-      <input bind:value={localLinesFileName}
+-             class="label-input w-full"
+-             name="linesFile"
+-             id="inline-local-lines-file-name"
+-             placeholder="Pick a csv file to upload"
+-             type="file"
+-             accept=".csv" />
+-    </div>
+-  </div>
+   <div class="md:flex md:items-center">
+     <div class="md:w-1/2"></div>
+     <div class="md:w-1/2">
+diff --git a/src/stores/azureutility.js b/src/stores/azureutility.js
+index 56c7637..99adc80 100644
+--- a/src/stores/azureutility.js
++++ b/src/stores/azureutility.js
+@@ -1,5 +1,6 @@
+-const masterKey = "Gg8iXkSPlLJQv6nKq5yrejRqWRDzCyifpu+YB+rhcQYZBDLkg5CuOBY3DoCktwaoCd6QeZT6DqD5Jfj3Y84eqA==";
+-export const STORAGE_ACCOUNT_ENDPOINT = "https://roopchoueditorapp.blob.core.windows.net";
++const masterKey = "fwLeaR0i6bQFTFGlSq4ifoMauLNaO9LgmG3Uup15rASKG1XW5DC82IQbNstLZwvUVBD2I77vNCZCgaDMMGFaiw==";
++
++export const STORAGE_ACCOUNT_ENDPOINT = "https://manuscriptstore.blob.core.windows.net";
+ let domParser = undefined;
+ 
+ export const LOAD_USERS_URL = `${STORAGE_ACCOUNT_ENDPOINT}/?comp=list&prefix=user&include=metadata&maxresults=20`;
+@@ -17,7 +18,7 @@ export const getHeaders = (operationName, options) => {
+ 		'x-ms-version': '2018-03-28'
+ 	};
+ 
+-	let VERB = ''; let CanonicalizedHeaders = ''; let CanonicalizedResource = '/roopchoueditorapp/';
++	let VERB = ''; let CanonicalizedHeaders = ''; let CanonicalizedResource = '/manuscriptstore/';
+ 	switch(operationName) {
+ 		case 'createuser':
+ 			VERB = 'PUT';
+@@ -33,14 +34,8 @@ export const getHeaders = (operationName, options) => {
+ 			VERB = 'PUT';
+ 			ContentType = headers['Content-Type'] = 'image/jpeg';
+ 			headers['x-ms-blob-type'] = 'BlockBlob';
+-			headers['x-ms-meta-height'] = options.height;
+-			headers['x-ms-meta-id'] = options.id;
+-			headers['x-ms-meta-width'] = options.width;
+ 			CanonicalizedHeaders = 'x-ms-blob-type:' + headers['x-ms-blob-type'] + "\n" +
+ 														 'x-ms-date:' + headers['x-ms-date'] + "\n" +
+-														 'x-ms-meta-height:' + headers['x-ms-meta-height'] + "\n" +
+-														 'x-ms-meta-id:' + headers['x-ms-meta-id'] + "\n" +
+-														 'x-ms-meta-width:' + headers['x-ms-meta-width'] + "\n" +
+ 														 'x-ms-version:' + headers['x-ms-version'];
+ 			CanonicalizedResource += `${options.userId}/${options.fileName}`;
+ 			break;
+@@ -88,7 +83,7 @@ export const getHeaders = (operationName, options) => {
+ 
+ 	const hash = CryptoJS.HmacSHA256(strToSign, key);
+ 	const hashInBase64 = CryptoJS.enc.Base64.stringify(hash);
+-	const authToken = "SharedKeyLite roopchoueditorapp:"+hashInBase64;
++	const authToken = "SharedKeyLite manuscriptstore:"+hashInBase64;
+ 	headers['Authorization'] = authToken;
+ 	return headers;
+ };
+diff --git a/src/stores/manuscriptsstore.js b/src/stores/manuscriptsstore.js
+index 3fea393..6edec11 100644
+--- a/src/stores/manuscriptsstore.js
++++ b/src/stores/manuscriptsstore.js
+@@ -28,33 +28,36 @@ const createManuscriptsStore = () => {
+ 		const loadedManuscripts = Array.prototype.map.call(
+ 			createDocument(responseText).querySelectorAll('Blobs > Blob'),
+ 			blob => {
++				let w = blob.querySelector('Metadata > width');
++				let h = blob.querySelector('Metadata > height');
++				let m_id = blob.querySelector('Metadata > id');
+ 				let manuscript = {
+ 					imageUrl: FILE_URL(userId, blob.querySelector('Name').textContent),
+ 					lastModified: blob.querySelector('Properties > Last-Modified').textContent,
+-					width: blob.querySelector('Metadata > width').textContent,
+-					height: blob.querySelector('Metadata > height').textContent,
+-					id: blob.querySelector('Metadata > id').textContent
++					width: "0",
++					height: "0",
++					id: "-1"
+ 				};
+ 
+-				if (manuscript.width) {
+-					manuscript.width = Number(manuscript.width);
++				if (w && w.textContent) {
++					manuscript.width = Number(w.textContent);
+ 				}
+ 
+-				if (manuscript.height) {
+-					manuscript.height = Number(manuscript.height);
++				if (h && h.textContent) {
++					manuscript.height = Number(h.textContent);
+ 				}
+ 
+ 				if (manuscript.lastModified) {
+ 					manuscript.lastModified = new Date(manuscript.lastModified);
+ 				}
+ 
+-				if (manuscript.id) {
+-					manuscript.id = Number(manuscript.id);
++				if (m_id && m_id.textContent) {
++					manuscript.id = Number(m_id.textContent);
++					manuscript['rectanglesUrl'] = FILE_URL(userId, `rectangles-${manuscript.id}.csv`);
++					manuscript['linesUrl'] = FILE_URL(userId, `lines-${manuscript.id}.csv`);
+ 				}
+ 
+-				manuscript['rectanglesUrl'] = FILE_URL(userId, `rectangles-${manuscript.id}.csv`);
+-				manuscript['linesUrl'] = FILE_URL(userId, `lines-${manuscript.id}.csv`);
+-
++				
+ 				return manuscript;
+ 			}
+ 		);
+@@ -77,32 +80,13 @@ const createManuscriptsStore = () => {
+ 
+ 		const newId = getLatestId()+1;
+ 
+-		// first upload rectangles file
+ 		const rectsFileName = `rectangles-${newId}.csv`;
+-		const rectsUploadResponse = await fetch(FILE_URL(getUserId(), rectsFileName), { method: 'PUT', mode: 'cors', cache: 'no-cache',
+-			headers: getHeaders('uploadtext', {userId: getUserId(), fileName: rectsFileName }),
+-			body: options.rectsFile
+-		});
+-		if (rectsUploadResponse.status !== 201) {
+-			console.error(`rectangles file upload failed: ${rectsUploadResponse.status}`);
+-			return;
+-		}
+-
+-		// next upload lines file
+ 		const linesFileName = `lines-${newId}.csv`;
+-		const linesUploadResponse = await fetch(FILE_URL(getUserId(), linesFileName), { method: 'PUT', mode: 'cors', cache: 'no-cache',
+-			headers: getHeaders('uploadtext', {userId: getUserId(), fileName: linesFileName }),
+-			body: options.linesFile
+-		});
+-		if (linesUploadResponse.status !== 201) {
+-			console.error(`lines file upload failed: ${linesUploadResponse.status}`);
+-			return;
+-		}
+ 
+ 		// finally upload image file
+ 		const imageName = `image-${newId}.jpg`;
+ 		const imgUploadResponse = await fetch(FILE_URL(getUserId(), imageName), { method: 'PUT', mode: 'cors', cache: 'no-cache',
+-			headers: getHeaders('createimage', {userId: getUserId(), fileName: imageName, id: newId, width: options.width, height: options.height }),
++			headers: getHeaders('createimage', {userId: getUserId(), fileName: imageName}),
+ 			body: options.imageFile
+ 		});
+ 		if (imgUploadResponse.status !== 201) {
+@@ -121,10 +105,11 @@ const createManuscriptsStore = () => {
+ 			imageUrl: FILE_URL(getUserId(), imageName),
+ 			rectanglesUrl: FILE_URL(getUserId(), rectsFileName),
+ 			linesUrl: FILE_URL(getUserId(), linesFileName),
+-			lastModified: new Date(lastModified),
+-			width: Number(options.width),
+-			height: Number(options.height),
+-			id: Number(newId)
++			lastModified: new Date(lastModified)//,
++			// how will this get refreshed in memory?
++			//width: Number(options.width),
++			//height: Number(options.height),
++			//id: Number(newId)
+ 		};
+ 
+ 		update(lib => {
